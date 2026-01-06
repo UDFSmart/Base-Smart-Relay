@@ -1,3 +1,4 @@
+#include "HardwareSerial.h"
 /*
  *    Copyright 2025 UDFOwner
  *
@@ -63,26 +64,14 @@ int processHttpRequest(
   }
   Serial.println("===== End Request ====");
   Serial.println();
-  Serial.println("===== Start Response ====");
-  Serial.print(method);
-  Serial.print(" ");
-  Serial.println(url);
-  Serial.print("code: ");
-  Serial.println(code);
-  Serial.println("===== End Response ====");
 
-  // Получаем количество найденных заголовков из списка collectHeaders
   int responseHeadersCount = http.headers();
 
-  // Создаем временный массив в стеке
   HttpHeader responseHeaders[responseHeadersCount > 0 ? responseHeadersCount : 1];
 
-  if (responseHeadersCount > 0) {
+  if (responseHeadersCount > 0)
     copyHeaders(responseHeaders, responseHeadersCount, http);
-  }
 
-  // Закрываем соединение ПОСЛЕ копирования, но ДО вызова callback
-  // чтобы освободить ресурсы WiFiClient для следующего возможного запроса
   http.end();
 
   if (callback) {
@@ -97,7 +86,6 @@ void copyHeaders(HttpHeader* resHeaders, int count, HTTPClient& http) {
     String name = http.headerName(i);
     String value = http.header(i);
 
-    // Используем strlcpy для безопасного копирования с учетом размера буфера
     strlcpy(resHeaders[i].name, name.c_str(), HEADER_NAME_LEN);
     strlcpy(resHeaders[i].value, value.c_str(), HEADER_VALUE_LEN);
   }

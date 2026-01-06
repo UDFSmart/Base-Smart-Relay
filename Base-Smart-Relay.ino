@@ -91,11 +91,19 @@ void pollServer() {
     Serial.print("HTTPS Response code: ");
     Serial.println(code);
 
-    if (code == HTTP_CODE_NO_CONTENT) {
-      handleCommand(headers, count);
-    } else {
-      Serial.print("Unexpected code: ");
-      Serial.println(code);
+    switch (code) {
+      case HTTP_CODE_NO_CONTENT:
+        handleCommand(headers, count);
+        break;
+      case HTTP_CODE_NOT_FOUND:
+        Serial.println("No command");
+        break;
+      case HTTP_CODE_FORBIDDEN:
+        Serial.println("Access Forbidden! DEVICE_ID not found or API_KEY not valid");
+        break;
+      default:
+        Serial.print("Unexpected code: ");
+        Serial.println(code);
     }
   });
 }
@@ -136,10 +144,7 @@ void executeCommand(const char* cmd, const char* param) {
 
   char status[128] = { 0 };
 
-  if (strcmp(cmd, COMMAND_NO_COMMAND) == 0) {
-    Serial.println("No command");
-    return;
-  } else if (strcmp(cmd, COMMAND_PIN_ON) == 0) {
+  if (strcmp(cmd, COMMAND_PIN_ON) == 0) {
     cmdOn(status, sizeof(status), param);
   } else if (strcmp(cmd, COMMAND_PIN_OFF) == 0) {
     cmdOff(status, sizeof(status), param);

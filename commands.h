@@ -21,8 +21,6 @@
 #include <ESP8266WiFi.h>
 
 // COMMAND LIST
-#define COMMAND_NO_COMMAND "NO_COMMAND"
-
 #define COMMAND_PIN_ON "ON"
 #define COMMAND_PIN_OFF "OFF"
 
