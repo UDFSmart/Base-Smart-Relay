@@ -18,7 +18,7 @@
 
 #pragma once
 
-#define DEVICE_ID "xxxx-xxxx-xxxx-xxxx" // YOUR DEVICE ID, to get it write to us: support@udfsoft.com
+#define DEVICE_ID "xxxx-xxxx-xxxx-xxxx"  // YOUR DEVICE ID, to get it write to us: support@udfsoft.com
 
 #define API_KEY "xxxxxxxxxxxxxxxxxxxx"  // YOUR API Key, to get it write to us: support@udfsoft.com
 
