@@ -40,4 +40,4 @@
 # debug information files
 *.dwo
 
-config.h
+/config.h
