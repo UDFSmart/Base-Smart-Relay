@@ -20,13 +20,15 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 
-#define APP_VERSION "2"
-#define DEVICE_ID "xxxx-xxxx-xxxx-xxxx" // YOUR DEVICE ID, to get it write to us: support@udfsoft.com
+#include "config.h"
+
+#include "network_utils.h"
+#include "string_utils.h"
+
+#include "commands.h"
 
 #define BASE_URL "https://smart.udfsoft.com/api/v1/devices/commands"
 #define GET_COMMAND_URL BASE_URL
-
-#define API_KEY "XXXXXX"  // YOUR API Key, to get it write to us: support@udfsoft.com
 
 // HEADERS NAMES
 #define X_POLL_INTERVAL "X-POLL-INTERVAL"
@@ -34,51 +36,18 @@
 #define X_CMD_PARAM "X-CMD-PARAM"
 #define X_CMD_STATUS "X-CMD-STATUS"
 
-// COMMAND LIST
-#define COMMAND_NO_COMMAND "NO_COMMAND"
-
-#define COMMAND_PIN_ON "ON"
-#define COMMAND_PIN_OFF "OFF"
-
-#define COMMAND_PIN_WATCH "STATUS"
-
-#define COMMAND_HARDRESET "HARDRESET"
-#define COMMAND_REBOOT "REBOOT"
-
-
 const unsigned long DEFAULT_POLL_INTERVAL = 15000;
-
-using HttpCallback = void (*)(HTTPClient& http, int code);
-
-struct HttpHeader {
-  const char* name;
-  const char* value;
-};
-
-int processHttpRequest(
-  const char* url,
-  const char* method,
-  String* body = nullptr,
-  HttpHeader* extraHeaders = nullptr,
-  size_t headersCount = 0,
-  int timeout = 15000,
-  HttpCallback callback = nullptr);
-
-WiFiClientSecure client;  // WiFiClient client;
-HTTPClient http;
 
 unsigned long lastPoll = 0;
 
 unsigned long pollInterval = DEFAULT_POLL_INTERVAL;
-
-String lastCmdId = "";
 
 void setup() {
   Serial.begin(115200);
 
   setupWifi();
 
-  client.setInsecure();
+  initHttpRequest();
 }
 
 void setupWifi() {
@@ -112,14 +81,18 @@ void pollServer() {
     return;  // не делаем HTTPS пока нет WiFi
   }
 
-  processHttpRequest(GET_COMMAND_URL, "GET", nullptr, nullptr, 0, 15000, [](HTTPClient& http, int code) {
-    // Callback: обработка команд сразу после GET
+  const char* collectHeaders[] = {
+    X_CMD,
+    X_CMD_PARAM,
+    X_POLL_INTERVAL
+  };
 
+  processHttpRequest(GET_COMMAND_URL, "GET", nullptr, nullptr, 0, collectHeaders, 3, 15000, [](int code, const HttpHeader* headers, size_t count) {
     Serial.print("HTTPS Response code: ");
     Serial.println(code);
 
     if (code == HTTP_CODE_NO_CONTENT) {
-      handleCommand(http);
+      handleCommand(headers, count);
     } else {
       Serial.print("Unexpected code: ");
       Serial.println(code);
@@ -127,32 +100,30 @@ void pollServer() {
   });
 }
 
-void handleCommand(HTTPClient& http) {
-  int headersCount = http.headers();
+void handleCommand(const HttpHeader* headers, size_t headersCount) {
   char cmd[32] = { 0 };
   char param[32] = { 0 };
 
-  for (int i = 0; i < headersCount; i++) {
-    String headerName = http.headerName(i);
-    String headerValue = http.header(i);
+  for (size_t i = 0; i < headersCount; i++) {
+    const char* name = headers[i].name;
 
-    Serial.print(headerName);
-    Serial.print(": ");
-
-    Serial.println(headerValue);
-
-    if (headerName.equalsIgnoreCase(X_CMD)) {
-      headerValue.toCharArray(cmd, sizeof(cmd));
-    } else if (headerName.equalsIgnoreCase(X_CMD_PARAM)) {
-      headerValue.toCharArray(param, sizeof(param));
-    } else if (headerName.equalsIgnoreCase(X_POLL_INTERVAL)) {
-
-      pollInterval = headerValue.toInt();
+    if (strcmp(name, X_CMD) == 0) {  // if name == X_CMD
+      const char* value = headers[i].value;
+      strlcpy(cmd, value, sizeof(cmd));
+    } else if (strcmp(name, X_CMD_PARAM) == 0) {  // if name == X_CMD_PARAM
+      strlcpy(param, headers[i].value, sizeof(param));
+    } else if (strcmp(name, X_POLL_INTERVAL) == 0) {  // if name == X_POLL_INTERVAL
+      pollInterval = atoi(headers[i].value);
       if (pollInterval <= 1000) pollInterval = DEFAULT_POLL_INTERVAL;
     }
   }
 
-  http.end();
+  Serial.print("cmd: ");
+  Serial.println(cmd);
+  Serial.print("param: ");
+  Serial.println(param);
+  Serial.print("pollInterval: ");
+  Serial.println(pollInterval);
 
   executeCommand(cmd, param);
 }
@@ -168,43 +139,25 @@ void executeCommand(const char* cmd, const char* param) {
   if (strcmp(cmd, COMMAND_NO_COMMAND) == 0) {
     Serial.println("No command");
     return;
-  } else if ((strcmp(cmd, COMMAND_PIN_ON) == 0 || strcmp(cmd, COMMAND_PIN_OFF) == 0 || strcmp(cmd, COMMAND_PIN_WATCH) == 0) && strlen(param) > 0) {
-    int pin = atoi(param);
-    if (pin != 0 && pin != 2) {
-      Serial.print("Invalid pin: ");
-      Serial.println(pin);
-      strncpy(status, "Invalid pin!", sizeof(status) - 1);
-    } else {
-      if (strcmp(cmd, COMMAND_PIN_ON) == 0) {
-        pinMode(pin, OUTPUT);
-        digitalWrite(pin, HIGH);
-        snprintf(status, sizeof(status), "Pin %d set HIGH", pin);
-      } else if (strcmp(cmd, COMMAND_PIN_OFF) == 0) {
-        pinMode(pin, OUTPUT);
-        digitalWrite(pin, LOW);
-        snprintf(status, sizeof(status), "Pin %d set LOW", pin);
-      } else if (strcmp(cmd, COMMAND_PIN_WATCH) == 0) {
-        pinMode(pin, INPUT);
-        int state = digitalRead(pin);
-        snprintf(status, sizeof(status), "Pin %d state: %d", pin, state);
-      }
-    }
+  } else if (strcmp(cmd, COMMAND_PIN_ON) == 0) {
+    cmdOn(status, sizeof(status), param);
+  } else if (strcmp(cmd, COMMAND_PIN_OFF) == 0) {
+    cmdOff(status, sizeof(status), param);
+  } else if (strcmp(cmd, COMMAND_PIN_WATCH) == 0) {
+    cmdStatus(status, sizeof(status), param);
   } else if (strcmp(cmd, COMMAND_HARDRESET) == 0) {
-    Serial.println("Smart device: RESET!");
-    Serial.flush();
-    delay(200);
-    sendResult(cmd, "Device: hardreset!");
-    WiFi.disconnect(true);
-    delay(200);
-    ESP.eraseConfig();
-    delay(500);
-    ESP.restart();
+    cmdHardReset(status, sizeof(status), param, [](const char* cmd, char* status) {
+      Serial.println("Smart device: RESET!");
+      Serial.flush();
+      delay(200);
+      sendResult(cmd, status);
+    });
+
     return;
   } else if (strcmp(cmd, COMMAND_REBOOT) == 0) {
-    delay(200);
-    sendResult(cmd, "Device: rebooted!");
-    delay(500);
-    ESP.restart();
+    cmdReboot(status, sizeof(status), param, [](const char* cmd, char* status) {
+      sendResult(cmd, status);
+    });
     return;
   } else {
     Serial.print("Unknown command: ");
@@ -212,18 +165,21 @@ void executeCommand(const char* cmd, const char* param) {
     strncpy(status, "Unknown command", sizeof(status) - 1);
   }
 
-  delay(100);
+  // delay(100);
   yield();
 
   sendResult(cmd, status);
 }
 
 void sendResult(const char* cmd, const char* status) {
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("sendResult: WiFi.status() != WL_CONNECTED");
+    return;
+  }
 
-  HttpHeader headers[] = {
-    { X_CMD_STATUS, status }
-  };
+  HttpHeader headers[1];
+  strlcpy(headers[0].name, X_CMD_STATUS, sizeof(headers[0].name));
+  strlcpy(headers[0].value, status, sizeof(headers[0].value));
 
   char postCommandUrl[256] = { 0 };
 
@@ -236,116 +192,5 @@ void sendResult(const char* cmd, const char* status) {
 
   sanitizePath(postCommandUrl);
 
-  processHttpRequest(postCommandUrl, "POST", nullptr, headers, 1, 15000);
-}
-
-// Универсальный метод с дополнительными заголовками
-int processHttpRequest(
-  const char* url,
-  const char* method,  // "GET" или "POST"
-  String* body,        // тело запроса (для POST)
-  // String* response,          // сюда вернётся ответ (опционально)
-  HttpHeader* extraHeaders,  // дополнительные заголовки
-  size_t headersCount,       // их количество
-  int timeout,
-  HttpCallback callback) {
-
-  // Serial.println("===== Start Request ====");
-  // Serial.print(method);
-  // Serial.print(" ");
-  // Serial.println(url);
-  // Serial.println("===== End Request ====");
-
-  http.begin(client, url);
-  http.setTimeout(timeout);
-  http.setReuse(true);  // keep-alive
-
-  // Добавляем стандартные заголовки
-  setBaseHeaders(http);
-
-  // Добавляем дополнительные заголовки
-  for (size_t i = 0; i < headersCount; i++) {
-    http.addHeader(extraHeaders[i].name, extraHeaders[i].value);
-  }
-
-  const char* keys[] = {
-    X_CMD,
-    X_CMD_PARAM,
-    X_POLL_INTERVAL
-  };
-
-  http.collectHeaders(keys, 3);
-
-  int code = -1;
-
-  if (strcmp(method, "POST") == 0) {
-    String payload = (body != nullptr) ? *body : "";
-    code = http.POST(payload);
-  } else if (strcmp(method, "GET") == 0) {
-    code = http.GET();
-  }
-
-
-  // Serial.println("===== Start Response ====");
-  // Serial.print(method);
-  // Serial.print(" ");
-  // Serial.println(url);
-  // Serial.print("Headers:");
-  // Serial.println("===== End Response ====");
-
-  if (callback) {
-    callback(http, code);
-  } else {
-    http.end();
-  }
-
-  return code;
-}
-
-void printResponseHeaders(HTTPClient& http) {
-  int count = http.headers();
-
-  Serial.print("Headers count: ");
-  Serial.println(count);
-
-  for (int i = 0; i < count; i++) {
-    Serial.print(http.headerName(i));
-    Serial.print(": ");
-    Serial.println(http.header(i));
-  }
-}
-
-void setBaseHeaders(HTTPClient& http) {
-  http.addHeader("Prefer", "return=minimal");
-  http.addHeader("X-Api-Key", API_KEY);
-  http.addHeader("X-DEVICE-ID", DEVICE_ID);
-  http.addHeader("X-CHIP-ID", String(ESP.getChipId()));
-  http.addHeader("X-MAC", WiFi.macAddress());
-  http.addHeader("X-APP-VERSION", APP_VERSION);
-
-  char buf[64];
-
-  snprintf(buf, sizeof(buf), "%d", WiFi.RSSI());
-  http.addHeader("X-WIFI-RSSI", buf);
-
-  snprintf(buf, sizeof(buf), "%lu", millis() / 1000);
-  http.addHeader("X-UPTIME", buf);
-
-  snprintf(buf, sizeof(buf), "%u", ESP.getFreeHeap());
-  http.addHeader("X-FREE-HEAP", buf);
-
-  snprintf(buf, sizeof(buf), "%u", ESP.getFreeSketchSpace());
-  http.addHeader("X-FREE-SKETCH", buf);
-
-  snprintf(buf, sizeof(buf), "%u", ESP.getFlashChipSize());
-  http.addHeader("X-FLASH-SIZE", buf);
-
-  snprintf(buf, sizeof(buf), "%u", ESP.getFlashChipRealSize());
-  http.addHeader("X-FLASH-REAL", buf);
-}
-
-void sanitizePath(char* s) {
-  for (; *s; s++) {
-    if (*s == ' ') *s = '_';
-  }
+  processHttpRequest(postCommandUrl, "POST", nullptr, headers, 1);
 }
