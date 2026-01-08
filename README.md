@@ -3,9 +3,9 @@
 ![Smart Socket](https://img.shields.io/badge/ESP8266-WiFiManager-blue)
 ![License](https://img.shields.io/badge/License-Apache%202.0-green)
 
-[Official Page](https://udfsoft.com/) 
+[Official Page](https://udfsoft.com/?utm_source=Github-Base-Smart-Relay) 
 
-[Device Management Page](https://smart.udfsoft.com/devices)
+[Device Management Page](https://smart.udfsoft.com/devices/?utm_source=Github-Base-Smart-Relay)
 
 **Base Smart Relay** is a firmware for ESP8266 (ESP-01 / ESP-01S) that provides remote relay and GPIO control via an HTTPS API.
 
@@ -161,5 +161,5 @@ X-CMD-STATUS: OK
 ## 📄 License
 
 Apache License 2.0
-© 2025 [UDFSoft](https://udfsoft.com)
+© 2025 [UDFSoft](https://udfsoft.com/?utm_source=Github-Base-Smart-Relay)
 
