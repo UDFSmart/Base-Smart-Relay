@@ -19,6 +19,7 @@
 #pragma once
 
 #define DEVICE_ID "xxxx-xxxx-xxxx-xxxx" // YOUR DEVICE ID, to get it write to us: support@udfsoft.com
+#define DEVICE_TYPE "esp-01s relay v1.0" // relay on pin 0
 
 #define API_KEY "xxxxxxxxxxxxxxxxxxxxx"  // YOUR API Key, to get it write to us: support@udfsoft.com
 
