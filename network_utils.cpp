@@ -1,4 +1,3 @@
-#include "HardwareSerial.h"
 /*
  *    Copyright 2025 UDFOwner
  *
@@ -18,6 +17,7 @@
  */
 
 #include "network_utils.h"
+#include "HardwareSerial.h"
 
 WiFiClientSecure client;
 HTTPClient http;
@@ -93,8 +93,12 @@ void copyHeaders(HttpHeader* resHeaders, int count, HTTPClient& http) {
 
 void setBaseHeaders(HTTPClient& http) {
   http.addHeader("Prefer", "return=minimal");
+  
   http.addHeader("X-Api-Key", API_KEY);
+  
   http.addHeader("X-DEVICE-ID", DEVICE_ID);
+  http.addHeader("X-DEVICE-TYPE", DEVICE_TYPE);
+
   http.addHeader("X-CHIP-ID", String(ESP.getChipId()));
   http.addHeader("X-MAC", WiFi.macAddress());
   http.addHeader("X-APP-VERSION", APP_VERSION);
@@ -131,4 +135,11 @@ void printResponseHeaders(HTTPClient& http) {
     Serial.print(": ");
     Serial.println(http.header(i));
   }
+}
+
+void network_SetHeader(HttpHeader& header, const char* name, const char* value) {
+  if (name == NULL) return;
+
+  strlcpy(header.name, name, sizeof(header.name));
+  strlcpy(header.value, value == NULL ? "" : value, sizeof(header.value));
 }

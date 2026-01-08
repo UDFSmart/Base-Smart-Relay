@@ -144,24 +144,28 @@ void executeCommand(const char* cmd, const char* param) {
 
   char status[128] = { 0 };
 
-  if (strcmp(cmd, COMMAND_PIN_ON) == 0) {
+  if (strcmp(cmd, COMMAND_RELAY_ON) == 0) {
+    commands_setRelayOn(status, sizeof(status), param);
+  } else if (strcmp(cmd, COMMAND_RELAY_OFF) == 0) {
+    commands_setRelayOff(status, sizeof(status), param);
+  } else if (strcmp(cmd, COMMAND_PIN_ON) == 0) {
     cmdOn(status, sizeof(status), param);
   } else if (strcmp(cmd, COMMAND_PIN_OFF) == 0) {
     cmdOff(status, sizeof(status), param);
   } else if (strcmp(cmd, COMMAND_PIN_WATCH) == 0) {
     cmdStatus(status, sizeof(status), param);
   } else if (strcmp(cmd, COMMAND_HARDRESET) == 0) {
-    cmdHardReset(status, sizeof(status), param, [](const char* cmd, char* status) {
+    cmdHardReset(status, sizeof(status), param, [](const char* cmd, const char* param, const char* status) {
       Serial.println("Smart device: RESET!");
       Serial.flush();
       delay(200);
-      sendResult(cmd, status);
+      sendResult(cmd, param, status);
     });
 
     return;
   } else if (strcmp(cmd, COMMAND_REBOOT) == 0) {
-    cmdReboot(status, sizeof(status), param, [](const char* cmd, char* status) {
-      sendResult(cmd, status);
+    cmdReboot(status, sizeof(status), param, [](const char* cmd, const char* param, const char* status) {
+      sendResult(cmd, param, status);
     });
     return;
   } else {
@@ -173,18 +177,22 @@ void executeCommand(const char* cmd, const char* param) {
   // delay(100);
   yield();
 
-  sendResult(cmd, status);
+  sendResult(cmd, param, status);
 }
 
-void sendResult(const char* cmd, const char* status) {
+void sendResult(const char* cmd, const char* param, const char* status) {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("sendResult: WiFi.status() != WL_CONNECTED");
     return;
   }
 
-  HttpHeader headers[1];
-  strlcpy(headers[0].name, X_CMD_STATUS, sizeof(headers[0].name));
-  strlcpy(headers[0].value, status, sizeof(headers[0].value));
+  const int HEADERS_COUNT = 2;
+
+  HttpHeader headers[HEADERS_COUNT];
+
+  network_SetHeader(headers[0], X_CMD_STATUS, status);
+  network_SetHeader(headers[1], X_CMD_PARAM, param);
+
 
   char postCommandUrl[256] = { 0 };
 
@@ -197,5 +205,7 @@ void sendResult(const char* cmd, const char* status) {
 
   sanitizePath(postCommandUrl);
 
-  processHttpRequest(postCommandUrl, "POST", nullptr, headers, 1);
+  int code = processHttpRequest(postCommandUrl, "POST", nullptr, headers, HEADERS_COUNT);
+  Serial.print("returned Code: ");
+  Serial.println(code);
 }

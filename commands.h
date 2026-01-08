@@ -21,6 +21,9 @@
 #include <ESP8266WiFi.h>
 
 // COMMAND LIST
+#define COMMAND_RELAY_ON "RELAY_ON"
+#define COMMAND_RELAY_OFF "RELAY_OFF"
+
 #define COMMAND_PIN_ON "ON"
 #define COMMAND_PIN_OFF "OFF"
 
@@ -29,11 +32,17 @@
 #define COMMAND_HARDRESET "HARDRESET"
 #define COMMAND_REBOOT "REBOOT"
 
-using FunctionCallback = void (*)(const char* cmd, char* status);
+using CommandFunctionCallback = void (*)(const char* cmd, const char* param, const char* status);
+
+
+void commands_setRelayOn(char* result, size_t resultSize, const char* param);
+void commands_setRelayOff(char* result, size_t resultSize, const char* param);
+
+void commands_setPinState(char* result, size_t resultSize, const char* param, int state);
 
 void cmdOn(char* result, size_t resultSize, const char* param);
 void cmdOff(char* result, size_t resultSize, const char* param);
 void cmdStatus(char* result, size_t resultSize, const char* param);
 
-void cmdReboot(char* result, size_t resultSize, const char* param, FunctionCallback callback = nullptr);
-void cmdHardReset(char* result, size_t resultSize, const char* param, FunctionCallback callback = nullptr);
+void cmdReboot(char* result, size_t resultSize, const char* param, CommandFunctionCallback callback = nullptr);
+void cmdHardReset(char* result, size_t resultSize, const char* param, CommandFunctionCallback callback = nullptr);

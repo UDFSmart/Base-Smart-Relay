@@ -40,32 +40,31 @@ static int parsePin(const char* param) {
 // Commands
 // =======================
 
+void commands_setRelayOn(char* result, size_t resultSize, const char* param) {
+  cmdOn(result, resultSize, "0");
+}
+
+void commands_setRelayOff(char* result, size_t resultSize, const char* param) {
+  cmdOff(result, resultSize, "0");
+}
+
 void cmdOn(char* result, size_t resultSize, const char* param) {
-  int pin = parsePin(param);
-
-  if (pin < 0) {
-    snprintf(result, resultSize, "Invalid pin");
-    return;
-  }
-
-  pinMode(pin, OUTPUT);
-  digitalWrite(pin, HIGH);
-
-  snprintf(result, resultSize, "PIN %d -> HIGH", pin);
+  commands_setPinState(result, resultSize, param, HIGH);
 }
 
 void cmdOff(char* result, size_t resultSize, const char* param) {
-  int pin = parsePin(param);
+  commands_setPinState(result, resultSize, param, LOW);
+}
 
+void commands_setPinState(char* result, size_t resultSize, const char* param, int state) {
+  int pin = parsePin(param);
   if (pin < 0) {
     snprintf(result, resultSize, "Invalid pin");
     return;
   }
-
   pinMode(pin, OUTPUT);
-  digitalWrite(pin, LOW);
-
-  snprintf(result, resultSize, "PIN %d -> LOW", pin);
+  digitalWrite(pin, state);
+  snprintf(result, resultSize, "PIN %d -> %s", pin, state ? "HIGH" : "LOW");
 }
 
 void cmdStatus(char* result, size_t resultSize, const char* param) {
@@ -76,15 +75,15 @@ void cmdStatus(char* result, size_t resultSize, const char* param) {
     return;
   }
 
-  pinMode(pin, INPUT);
+  pinMode(pin, OUTPUT);  // FOR RELAY ONLY !!!
   int state = digitalRead(pin);
 
   snprintf(result, resultSize, "PIN %d state: %d", pin, state);
 }
 
-void cmdReboot(char* result, size_t resultSize, const char* param, FunctionCallback callback) {
+void cmdReboot(char* result, size_t resultSize, const char* param, CommandFunctionCallback callback) {
   if (callback) {
-    callback(COMMAND_REBOOT, "Device: rebooted!");
+    callback(COMMAND_REBOOT, param, "Device: rebooted!");
   }
 
   delay(300);
@@ -92,11 +91,13 @@ void cmdReboot(char* result, size_t resultSize, const char* param, FunctionCallb
   ESP.restart();
 }
 
-void cmdHardReset(char* result, size_t resultSize, const char* param, FunctionCallback callback) {
+void cmdHardReset(char* result, size_t resultSize, const char* param, CommandFunctionCallback callback) {
   if (callback) {
-    callback(COMMAND_HARDRESET, "Device: rebooted!");
+    callback(COMMAND_HARDRESET, param, "Device: rebooted!");
   }
-  delay(300);
+
+  yield();
+  delay(500);
 
   WiFi.disconnect(true);
   delay(200);
