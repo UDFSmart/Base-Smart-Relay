@@ -115,6 +115,7 @@ POST https://smart.udfsoft.com/api/v1/devices/commands/{CMD}
 Headers:
 ```
 X-CMD-STATUS: OK
+X-CMD-PARAM: 2
 ```
 
 ------------------------
