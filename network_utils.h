@@ -21,8 +21,8 @@
 #include <ESP8266HTTPClient.h>
 #include "config.h"
 
-#define HEADER_NAME_LEN   32
-#define HEADER_VALUE_LEN  64
+#define HEADER_NAME_LEN 32
+#define HEADER_VALUE_LEN 64
 
 struct HttpHeader {
   char name[HEADER_NAME_LEN];
@@ -47,3 +47,5 @@ int processHttpRequest(
 void setBaseHeaders(HTTPClient& http);
 
 void printResponseHeaders(HTTPClient& http);
+
+void network_SetHeader(HttpHeader& header, const char* name, const char* value);
