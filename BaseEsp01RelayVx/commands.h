@@ -31,18 +31,22 @@
 
 #define COMMAND_HARDRESET "HARDRESET"
 #define COMMAND_REBOOT "REBOOT"
+// End COMMAND LIST
 
 using CommandFunctionCallback = void (*)(const char* cmd, const char* param, const char* status);
 
-
-void commands_setRelayOn(char* result, size_t resultSize, const char* param);
-void commands_setRelayOff(char* result, size_t resultSize, const char* param);
+// ======================== PUBLIC COMMANDS ======================== \\
 
 void commands_setPinState(char* result, size_t resultSize, const char* param, int state);
 
-void cmdOn(char* result, size_t resultSize, const char* param);
-void cmdOff(char* result, size_t resultSize, const char* param);
-void cmdStatus(char* result, size_t resultSize, const char* param);
+void commands_setPinOn(const char* param, CommandFunctionCallback callback);
+void commands_setPinOff(const char* param, CommandFunctionCallback callback);
 
-void cmdReboot(char* result, size_t resultSize, const char* param, CommandFunctionCallback callback = nullptr);
-void cmdHardReset(char* result, size_t resultSize, const char* param, CommandFunctionCallback callback = nullptr);
+void commands_setRelayOn(const char* param, CommandFunctionCallback callback);
+void commands_setRelayOff(const char* param, CommandFunctionCallback callback);
+
+void commands_setStatus(const char* param, CommandFunctionCallback callback);
+
+void commands_setReboot(const char* param, CommandFunctionCallback callback);
+
+void commands_setHardReset(const char* param, CommandFunctionCallback callback);

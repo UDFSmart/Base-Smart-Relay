@@ -93,9 +93,9 @@ void copyHeaders(HttpHeader* resHeaders, int count, HTTPClient& http) {
 
 void setBaseHeaders(HTTPClient& http) {
   http.addHeader("Prefer", "return=minimal");
-  
+
   http.addHeader("X-Api-Key", API_KEY);
-  
+
   http.addHeader("X-DEVICE-ID", DEVICE_ID);
   http.addHeader("X-DEVICE-TYPE", DEVICE_TYPE);
 
@@ -105,8 +105,12 @@ void setBaseHeaders(HTTPClient& http) {
 
   char buf[64];
 
+  // WIFI
+  http.addHeader("X-WIFI-SSID", WiFi.SSID());
+
   snprintf(buf, sizeof(buf), "%d", WiFi.RSSI());
   http.addHeader("X-WIFI-RSSI", buf);
+  // END WIFI
 
   snprintf(buf, sizeof(buf), "%lu", millis() / 1000);
   http.addHeader("X-UPTIME", buf);
