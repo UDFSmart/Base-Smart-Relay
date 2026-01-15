@@ -25,7 +25,7 @@
 #include "network_utils.h"
 #include "string_utils.h"
 
-#include "commands.h"
+#include "command_executor.h"
 
 #define BASE_URL "https://smart.udfsoft.com/api/v1/devices/commands"
 #define GET_COMMAND_URL BASE_URL
@@ -78,7 +78,7 @@ void pollServer() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("Reconnecting WiFi...");
     WiFi.reconnect();
-    return;  // не делаем HTTPS пока нет WiFi
+    return;
   }
 
   const char* collectHeaders[] = {
@@ -126,58 +126,22 @@ void handleCommand(const HttpHeader* headers, size_t headersCount) {
     }
   }
 
-  Serial.print("cmd: ");
-  Serial.println(cmd);
-  Serial.print("param: ");
-  Serial.println(param);
+  Serial.printf("command: %s; Param: %s; Status: %s\n", cmd, param);
   Serial.print("pollInterval: ");
   Serial.println(pollInterval);
 
-  executeCommand(cmd, param);
-}
-
-void executeCommand(const char* cmd, const char* param) {
-  if (!cmd || strlen(cmd) == 0) {
-    Serial.println("No command received");
-    return;
-  }
-
-  char status[128] = { 0 };
-
-  if (strcmp(cmd, COMMAND_RELAY_ON) == 0) {
-    commands_setRelayOn(status, sizeof(status), param);
-  } else if (strcmp(cmd, COMMAND_RELAY_OFF) == 0) {
-    commands_setRelayOff(status, sizeof(status), param);
-  } else if (strcmp(cmd, COMMAND_PIN_ON) == 0) {
-    cmdOn(status, sizeof(status), param);
-  } else if (strcmp(cmd, COMMAND_PIN_OFF) == 0) {
-    cmdOff(status, sizeof(status), param);
-  } else if (strcmp(cmd, COMMAND_PIN_WATCH) == 0) {
-    cmdStatus(status, sizeof(status), param);
-  } else if (strcmp(cmd, COMMAND_HARDRESET) == 0) {
-    cmdHardReset(status, sizeof(status), param, [](const char* cmd, const char* param, const char* status) {
+  command_executor_execute(cmd, param, [](const char* cmd, const char* param, const char* status) {
+    if (strcmp(cmd, COMMAND_HARDRESET) == 0) {
       Serial.println("Smart device: RESET!");
       Serial.flush();
-      delay(200);
-      sendResult(cmd, param, status);
-    });
+    } else {
+      Serial.printf("command: %s; Param: %s; Status: %s\n", cmd, param, status);
+    }
 
-    return;
-  } else if (strcmp(cmd, COMMAND_REBOOT) == 0) {
-    cmdReboot(status, sizeof(status), param, [](const char* cmd, const char* param, const char* status) {
-      sendResult(cmd, param, status);
-    });
-    return;
-  } else {
-    Serial.print("Unknown command: ");
-    Serial.println(cmd);
-    strncpy(status, "Unknown command", sizeof(status) - 1);
-  }
+    delay(100);
 
-  // delay(100);
-  yield();
-
-  sendResult(cmd, param, status);
+    sendResult(cmd, param, status);
+  });
 }
 
 void sendResult(const char* cmd, const char* param, const char* status) {

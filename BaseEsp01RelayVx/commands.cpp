@@ -20,7 +20,9 @@
 
 #include <Arduino.h>
 
-#define COMMAND_RESULT_SIZE 64
+#define COMMAND_RESULT_SIZE 128
+
+#define RELAY_PIN_PARAM "0"
 
 // =======================
 // Utils
@@ -37,37 +39,18 @@ static int parsePin(const char* param) {
 }
 
 // =======================
-// Commands
+// Private Commands
 // =======================
 
-void commands_setRelayOn(char* result, size_t resultSize, const char* param) {
-  cmdOn(result, resultSize, "0");
-}
-
-void commands_setRelayOff(char* result, size_t resultSize, const char* param) {
-  cmdOff(result, resultSize, "0");
-}
-
-void cmdOn(char* result, size_t resultSize, const char* param) {
+static void cmdOn(char* result, size_t resultSize, const char* param) {
   commands_setPinState(result, resultSize, param, HIGH);
 }
 
-void cmdOff(char* result, size_t resultSize, const char* param) {
+static void cmdOff(char* result, size_t resultSize, const char* param) {
   commands_setPinState(result, resultSize, param, LOW);
 }
 
-void commands_setPinState(char* result, size_t resultSize, const char* param, int state) {
-  int pin = parsePin(param);
-  if (pin < 0) {
-    snprintf(result, resultSize, "Invalid pin");
-    return;
-  }
-  pinMode(pin, OUTPUT);
-  digitalWrite(pin, state);
-  snprintf(result, resultSize, "PIN %d -> %s", pin, state ? "HIGH" : "LOW");
-}
-
-void cmdStatus(char* result, size_t resultSize, const char* param) {
+static void cmdStatus(char* result, size_t resultSize, const char* param) {
   int pin = parsePin(param);
 
   if (pin < 0) {
@@ -75,13 +58,13 @@ void cmdStatus(char* result, size_t resultSize, const char* param) {
     return;
   }
 
-  pinMode(pin, OUTPUT);  // FOR RELAY ONLY !!!
+  pinMode(pin, OUTPUT);  // WARNING: relay output only, not for GPIO input usage
   int state = digitalRead(pin);
 
   snprintf(result, resultSize, "PIN %d state: %d", pin, state);
 }
 
-void cmdReboot(char* result, size_t resultSize, const char* param, CommandFunctionCallback callback) {
+static void cmdReboot(char* result, size_t resultSize, const char* param, CommandFunctionCallback callback) {
   if (callback) {
     callback(COMMAND_REBOOT, param, "Device: rebooted!");
   }
@@ -91,7 +74,7 @@ void cmdReboot(char* result, size_t resultSize, const char* param, CommandFuncti
   ESP.restart();
 }
 
-void cmdHardReset(char* result, size_t resultSize, const char* param, CommandFunctionCallback callback) {
+static void cmdHardReset(char* result, size_t resultSize, const char* param, CommandFunctionCallback callback) {
   if (callback) {
     callback(COMMAND_HARDRESET, param, "Device: rebooted!");
   }
@@ -105,4 +88,59 @@ void cmdHardReset(char* result, size_t resultSize, const char* param, CommandFun
   delay(300);
 
   ESP.restart();
+}
+
+static void execAndCallback(
+  const char* cmd,
+  const char* param,
+  void (*exec)(char*, size_t, const char*),
+  CommandFunctionCallback cb) {
+  char result[COMMAND_RESULT_SIZE] = { 0 };
+  exec(result, COMMAND_RESULT_SIZE, param);
+  if (cb) cb(cmd, param, result);
+}
+
+// =======================
+// Public Commands
+// =======================
+
+void commands_setPinState(char* result, size_t resultSize, const char* param, int state) {
+  int pin = parsePin(param);
+  if (pin < 0) {
+    snprintf(result, resultSize, "Invalid pin");
+    return;
+  }
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, state);
+  snprintf(result, resultSize, "PIN %d -> %s", pin, state ? "HIGH" : "LOW");
+}
+
+void commands_setPinOn(const char* param, CommandFunctionCallback callback) {
+  execAndCallback(COMMAND_PIN_ON, param, cmdOn, callback);
+}
+
+void commands_setPinOff(const char* param, CommandFunctionCallback callback) {
+  execAndCallback(COMMAND_PIN_OFF, param, cmdOff, callback);
+}
+
+void commands_setRelayOn(const char* param, CommandFunctionCallback callback) {
+  execAndCallback(COMMAND_RELAY_ON, RELAY_PIN_PARAM, cmdOn, callback);
+}
+
+void commands_setRelayOff(const char* param, CommandFunctionCallback callback) {
+  execAndCallback(COMMAND_RELAY_OFF, RELAY_PIN_PARAM, cmdOff, callback);
+}
+
+void commands_setStatus(const char* param, CommandFunctionCallback callback) {
+  execAndCallback(COMMAND_PIN_WATCH, param, cmdStatus, callback);
+}
+
+void commands_setReboot(const char* param, CommandFunctionCallback callback) {
+  char result[COMMAND_RESULT_SIZE] = { 0 };
+  cmdReboot(result, COMMAND_RESULT_SIZE, param, callback);
+}
+
+void commands_setHardReset(const char* param, CommandFunctionCallback callback) {
+  char result[COMMAND_RESULT_SIZE] = { 0 };
+  cmdHardReset(result, COMMAND_RESULT_SIZE, param, callback);
 }
