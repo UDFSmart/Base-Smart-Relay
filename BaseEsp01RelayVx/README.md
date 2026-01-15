@@ -151,6 +151,14 @@ X-CMD-PARAM: 2
 
 ------------------------
 
+## Supported Relays
+
+### ESP-01s Relay V1.0
+![<img src="BaseEsp01RelayVx/photos/esp-01s Relay v1.0_front.jpg" alt="Device preview" width="100">](BaseEsp01RelayVx/photos/esp-01s Relay v1.0_front.jpg)
+![<img src="BaseEsp01RelayVx/photos/esp-01s Relay v1.0_back.jpg" alt="Device preview" width="100">](BaseEsp01RelayVx/photos/esp-01s Relay v1.0_back.jpg)
+
+------------------------
+
 ## Photos
 
 ![<img src="photos/photo_2026-01-01_18-07-50.jpg" alt="Device preview" width="100">](photos/photo_2026-01-01_18-07-50.jpg)
